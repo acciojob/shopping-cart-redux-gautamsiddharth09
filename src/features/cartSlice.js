@@ -1,13 +1,23 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
-export const fetchProduct = createAsyncThunk(
-  "products/fetch",
-  async () => {
-    const res = await fetch("https://fakestoreapi.com/products");
-    console.log("data",res)
-    return res.json();
-  }
-);
+/* ------------------ PROMISE THUNK ------------------ */
+export const fetchProduct = () => (dispatch) => {
+  dispatch(fetchProductPending());
+
+  fetch("https://fakestoreapi.com/products")
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Failed to fetch products");
+      }
+      return res.json();
+    })
+    .then((data) => {
+      dispatch(fetchProductSuccess(data));
+    })
+    .catch(() => {
+      dispatch(fetchProductError());
+    });
+};
 
 const cartSlice = createSlice({
   name: "cart",
@@ -19,6 +29,23 @@ const cartSlice = createSlice({
     discount: 0,
   },
   reducers: {
+    /* -------- FETCH STATES -------- */
+    fetchProductPending: (state) => {
+      state.isLoading = true;
+      state.isError = false;
+    },
+
+    fetchProductSuccess: (state, action) => {
+      state.isLoading = false;
+      state.products = action.payload;
+    },
+
+    fetchProductError: (state) => {
+      state.isLoading = false;
+      state.isError = true;
+    },
+
+    /* -------- CART LOGIC -------- */
     addToCart: (state, action) => {
       const item = state.cartItems.find(
         (i) => i.id === action.payload.id
@@ -38,42 +65,30 @@ const cartSlice = createSlice({
     },
 
     increaseQuantity: (state, action) => {
-      const item = state.cartItems.find(i => i.id === action.payload);
+      const item = state.cartItems.find(
+        (i) => i.id === action.payload
+      );
       if (item) item.quantity += 1;
     },
 
     decreaseQuantity: (state, action) => {
-      const item = state.cartItems.find(i => i.id === action.payload);
+      const item = state.cartItems.find(
+        (i) => i.id === action.payload
+      );
       if (item && item.quantity > 1) item.quantity -= 1;
     },
 
     applyCoupon: (state, action) => {
-      if (action.payload === "SAVE10") {
-        state.discount = 10;
-      }
-      else{
-        state.discount = 0;
-      }
+      state.discount = action.payload === "SAVE10" ? 10 : 0;
     },
-  },
-
-  extraReducers: (builder) => {
-    builder
-      .addCase(fetchProduct.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(fetchProduct.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.products = action.payload;
-      })
-      .addCase(fetchProduct.rejected, (state) => {
-        state.isLoading = false;
-        state.isError = true;
-      });
   },
 });
 
+/* -------- EXPORT ACTIONS -------- */
 export const {
+  fetchProductPending,
+  fetchProductSuccess,
+  fetchProductError,
   addToCart,
   removeToCart,
   increaseQuantity,
